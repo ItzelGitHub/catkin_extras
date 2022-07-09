@@ -475,9 +475,9 @@ class Mapping(smach.State):
             print('Moving Base ang = ', ang*i)
             head.set_named_target('neutral')    
             head.go() 
-            cents = correct_points()
+            #cents = correct_points()
             if i == 4: succ = True
-        print(cents)
+        #print(cents)
         
         if succ:
             print('Takeshi Mapped')
@@ -979,10 +979,10 @@ class Delivery(smach.State):
 def init(node_name):
     global listener, broadcaster, tfBuffer, tf_static_broadcaster, scene, rgbd  , head,whole_body,arm,gripper  ,goal,navclient,clear_octo_client , classify_client , detect_waving_client, class_names , bridge , base_vel_pub,takeshi_talk_pub, order
     rospy.init_node(node_name)
-    head = moveit_commander.MoveGroupCommander('head')
-    gripper =  moveit_commander.MoveGroupCommander('gripper')
-    whole_body=moveit_commander.MoveGroupCommander('whole_body')
-    arm =  moveit_commander.MoveGroupCommander('arm')
+    head = moveit_commander.MoveGroupCommander('head', wait_for_servers=55)
+    gripper =  moveit_commander.MoveGroupCommander('gripper', wait_for_servers=55)
+    whole_body=moveit_commander.MoveGroupCommander('whole_body', wait_for_servers=55)
+    arm =  moveit_commander.MoveGroupCommander('arm', wait_for_servers=55)
     listener = tf.TransformListener()
     broadcaster = tf.TransformBroadcaster()
     tfBuffer = tf2_ros.Buffer()

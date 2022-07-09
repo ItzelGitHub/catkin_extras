@@ -11,8 +11,8 @@ from utils_notebooks import *
 
 #protoFile = "/home/roboworks/openpose/models/pose/coco/pose_deploy_linevec.prototxt"
 #weightsFile = "/home/roboworks/openpose/models/pose/coco/pose_iter_440000.caffemodel"
-protoFile = "/home/biorob/openpose/models/pose/body_25/pose_deploy.prototxt"
-weightsFile = "/home/biorob/openpose/models/pose/body_25/pose_iter_584000.caffemodel"
+protoFile = "pose_deploy.prototxt"
+weightsFile = "pose_iter_584000.caffemodel"
 net = cv2.dnn.readNetFromCaffe(protoFile, weightsFile)
 
 #############################################################################
