@@ -22,7 +22,8 @@
 	</include>
 
 	<!-- openpose-->
-
+	<node name="waving_detector" pkg="waving_detector" type="sos_service_waving_sim_test.py" output="screen" >
+	</node>
 
 	<!-- nav-->
 

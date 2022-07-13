@@ -11,8 +11,8 @@ from utils_notebooks import *
 
 #protoFile = "/home/roboworks/openpose/models/pose/coco/pose_deploy_linevec.prototxt"
 #weightsFile = "/home/roboworks/openpose/models/pose/coco/pose_iter_440000.caffemodel"
-protoFile = "/home/biorob/openpose/models/pose/body_25/pose_deploy.prototxt"
-weightsFile = "/home/biorob/openpose/models/pose/body_25/pose_iter_584000.caffemodel"
+protoFile = "/home/robocup20/openpose/models/pose/body_25/pose_deploy.prototxt"
+weightsFile = "/home/robocup20/openpose/models/pose/body_25/pose_iter_584000.caffemodel"
 net = cv2.dnn.readNetFromCaffe(protoFile, weightsFile)
 
 #############################################################################
@@ -126,6 +126,7 @@ def trigger_response(request):
 
 
 rospy.init_node('waving_server') 
+print('\n--------------------------LoreService Starting--------------------------\n')
 listener = tf.TransformListener()
 broadcaster= tf.TransformBroadcaster()
 tf_static_broadcaster= tf2_ros.StaticTransformBroadcaster()
