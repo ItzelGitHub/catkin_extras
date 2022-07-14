@@ -13,7 +13,7 @@ from object_classification.srv import *
 from hsrb_interface import Robot
 import cv2  # New
 import rospy # New
-import face_recognition #New
+#import face_recognition #New
 
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -29,6 +29,10 @@ from std_msgs.msg import Bool
 
 from hsrb_interface import Robot
 import traceback
+protoFile = "/home/takeshi/openpose/models/pose/body_25/pose_deploy.prototxt"
+weightsFile = "/home/takeshi/openpose/models/pose/body_25/pose_iter_584000.caffemodel"
+
+net = cv2.dnn.readNetFromCaffe(protoFile, weightsFile)
 
 robot = Robot()
 whole_body = robot.get("whole_body")
@@ -440,6 +444,78 @@ def move_d_to(target_distance=0.5,target_link='Floor_Object0'):
     succ=move_base( new_pose[0],new_pose[1],         np.arctan2(pose[1],pose[0])+wb_v[2])
     return succ
 
+    #############################################################################
+def predict_waving(frame):
+
+
+    # Specify the input image dimensions
+    inHeight = frame.shape[0]
+    inWidth = frame.shape[1]
+
+
+    # Prepare the frame to be fed to the network
+    inpBlob = cv2.dnn.blobFromImage(frame, 1.0 / 255, (inWidth, inHeight), (0, 0, 0), swapRB=False, crop=False)
+
+    # Set the prepared object as the input blob of the network
+    net.setInput(inpBlob)
+
+    output = net.forward()
+
+    H = output.shape[2]
+    W = output.shape[3]
+    threshold=0.1
+    # Empty list to store the detected keypoints
+    points = []
+    invalid_joints = []
+
+    for i in range(12):
+        # confidence map of corresponding body's part.
+        probMap = output[0, i, :, :]
+
+        # Find global maxima of the probMap.
+        _, prob,_, point = cv2.minMaxLoc(probMap)
+        #print (prob,point)
+
+        # Scale the point to fit on the original image
+        x = (inWidth * point[0]) / W
+        y = (inHeight * point[1]) / H
+
+        
+        # Add the point to the list if the probability is greater than the threshold
+        points.append((int(x), int(y)))
+    else :
+        points.append(None)
+        invalid_joints.append(i)
+        
+        print(points)
+        
+        # Logic
+
+        joints1 = [2,3,5,6] # elbows and shoulders
+        joints2 = [3,4,6,7] #
+
+    if any(x in joints1 for x in invalid_joints): #if doesn't find the elbow or shoulder go out
+        print("Out")
+        return False , (0,0)
+    else:
+        if points[3][1]<points[2][1] or points[6][1]<points[5][1]: # ask about elbow over shoulder
+            print('elbow up') 
+            return True, points[0][:]
+        else:
+            print('elbow down, ask for wrist')
+            if any(x in joints2 for x in invalid_joints): # if doesn't find the wrist go out 
+                print("Out")
+                return False, points[0][:]
+            else:
+                if points[4][1]<points[3][1] or points[7][1]<points[6][1]: # ask about wrist over elbow
+                    print('Hand up')
+                    return True, points[0][:]
+                else:
+                    print('Hand down, go Out')
+                    return False ,  points[0][:]
+           
+############################################
+
 
 ##### Define state INITIAL #####
 
@@ -462,6 +538,7 @@ class Initial(smach.State):
 
         clear_octo_client()
         close_gripper()
+        
         scene.remove_world_object()
         #Takeshi neutral
         arm.set_named_target('go')
@@ -486,10 +563,10 @@ class Mapping(smach.State):
         print('360 Deg turn to Map')
 
         rospy.logerr("-" * 300)
-        omni_base.go_rel(0,0,np.pi)
+        #omni_base.go_rel(0,0,np.pi)
         rospy.sleep(0.5)
 
-        omni_base.go_rel(0,0,np.pi)
+        #omni_base.go_rel(0,0,np.pi)
         succ = True
         if succ:
             print('Takeshi Mapped')
@@ -536,45 +613,40 @@ class Scan_restaurant(smach.State):
             head.go()
             rospy.sleep(0.5)
         
-           #Request LoreService
-            rospy.sleep(3)
-            rospy.wait_for_service('/detect_waving')
-            req= TriggerRequest()
-            try:
-
-                res=detect_waving_client.call(req)
-                WaveReq = res.success
-                print('WaveReq=', res.success)
-            except:
-                WaveReq = False
-                print('Wave detector failed')
+           # Read image and PoinClouds topics
+            data = rospy.wait_for_message("/hsrb/head_rgbd_sensor/rgb/image_raw",Image) ### FOR DEBUGGING: WHEN USING ROBOT PLEASE CHANGE THIS TOPIC ACCORDINGLY
+            cv2_img = bridge.imgmsg_to_cv2(data)#, "bgr8")
+            print(cv2_img.shape)
+            data = rospy.wait_for_message('/hsrb/head_rgbd_sensor/depth_registered/rectified_points', PointCloud2)
+            points=ros_numpy.numpify(data)
+            red , face_coords =predict_waving(cv2_img)
+            print (points.shape)
+            xyz_wrt_robot= points[ face_coords[1],face_coords[0] ]
+            WaveReq = red
+            print('WaveReq=', red)
+            
 
 
             if WaveReq == True:
-                x_wrt_robot,y_wrt_robot,z_wrt_robot = res.message[1:-1].split(', ')[0:3] #RESPUESTA : sucess, false, ( waving human found with face 3d coords  wrt robot
-                if 'nan' in [x_wrt_robot, y_wrt_robot, z_wrt_robot]:
+                
+                if 'nan' in [xyz_wrt_robot[0], xyz_wrt_robot[1], xyz_wrt_robot[2]]:
                     succ = False
                 else:
                     print('Takeshi found a Waving Person')
-                    print(x_wrt_robot,y_wrt_robot,z_wrt_robot )
-                    try:
-                        #coordenadas  el robot respecto al mapa
-                        trans , rot = listener.lookupTransform('/map', '/head_rgbd_sensor_gazebo_frame', rospy.Time(0))
-                        x_wrt_robot1 = float(x_wrt_robot)
-                        y_wrt_robot1 = float(y_wrt_robot)
-                        z_wrt_robot1 = float(z_wrt_robot)
-                        # Coordenadas rostro humano detectado respecto al robot
-                        broadcaster.sendTransform((x_wrt_robot1,y_wrt_robot1,z_wrt_robot1),rot, rospy.Time.now(), 'Human_'+str(res.success)+'_waving',"head_rgbd_sensor_link")
-                        rospy.sleep(0.3)
-                        # Coordenadas rostro humano detectado respecto al mapa trans_map
-                        trans_map , rot_map = listener.lookupTransform('/map', 'Human_'+str(res.success)+'_waving', rospy.Time(0))
-                        succ = True
-                        person_goal = trans_map
-                        print('Coordinates of Person Saved')
-                        break
-                    except:
-                        succ = False
-                        print('It was not possible to transform the coordinates')
+                    print('Coordenadasss', xyz_wrt_robot[0],xyz_wrt_robot[1],xyz_wrt_robot[2] )
+                    
+                    #coordenadas  el robot respecto al mapa
+                    trans , rot = listener.lookupTransform('/map', '/head_rgbd_sensor_link', rospy.Time(0))
+                    # Coordenadas rostro humano detectado respecto al robot
+                    broadcaster.sendTransform((xyz_wrt_robot[0],xyz_wrt_robot[1],xyz_wrt_robot[2] - 1.5),rot, rospy.Time.now(), 'Human_waving',"head_rgbd_sensor_link")
+                    rospy.sleep(0.3)
+                    # Coordenadas rostro humano detectado respecto al mapa trans_map
+                    trans_map , rot_map = listener.lookupTransform('/map', 'Human_waving', rospy.Time(0))
+                    succ = True
+                    person_goal = trans_map
+                    print('Coordinates of Person Saved', trans_map)
+                    break
+                   
             else: print('Clear space, Takeshi did not find a Waving Person in iteration', i)
 
 
@@ -597,43 +669,42 @@ class Scan_restaurant(smach.State):
 
                 #Request LoreService
 
-                try:
-                    res=detect_waving_client.call(req)
-                    WaveReq = res.success
-                except:
-                    WaveReq = False
-                    print('Wave detector failed')
+                
+                data = rospy.wait_for_message("/hsrb/head_rgbd_sensor/rgb/image_raw",Image) ### FOR DEBUGGING: WHEN USING ROBOT PLEASE CHANGE THIS TOPIC ACCORDINGLY
+                cv2_img = bridge.imgmsg_to_cv2(data)#, "bgr8")
+                print(cv2_img.shape)
+                red , face_coords =predict_waving(cv2_img)
+                data = rospy.wait_for_message('/hsrb/head_rgbd_sensor/depth_registered/rectified_points', PointCloud2)
+                points=ros_numpy.numpify(data)
+                xyz_wrt_robot= points[ face_coords[1],face_coords[0] ]
+                WaveReq = red
+                print('WaveReq=', red)
+                
 
 
                 if WaveReq == True:
-                    x_wrt_robot,y_wrt_robot,z_wrt_robot = res.message[1:-1].split(', ')[0:3] #RESPUESTA : sucess, false, ( waving human found with face 3d coords  wrt robot
-                    if 'nan' in [x_wrt_robot, y_wrt_robot, z_wrt_robot]:
+                    if 'nan' in [xyz_wrt_robot[0], xyz_wrt_robot[1], xyz_wrt_robot[2]]:
                         succ = False
                     else:
                         print('Takeshi found a Waving Person')
-                        x_wrt_robot,y_wrt_robot,z_wrt_robot=res.message[1:-1].split(', ')[0:3] #RESPUESTA : sucess, false, ( waving human found with face 3d coords  wrt robot
-                        try:
-                            #coordenadas  el robot respecto al mapa
-                            trans , rot = listener.lookupTransform('/map', '/head_rgbd_sensor_gazebo_frame', rospy.Time(0))
-                            x_wrt_robot1 = float(x_wrt_robot)
-                            y_wrt_robot1 = float(y_wrt_robot)
-                            z_wrt_robot1 = float(z_wrt_robot)
-                            # Coordenadas rostro humano detectado respecto al robot
-                            broadcaster.sendTransform((x_wrt_robot,y_wrt_robot,z_wrt_robot),rot, rospy.Time.now(), 'Human_'+str(res.success)+'_waving',"head_rgbd_sensor_link")
-                            rospy.sleep(0.3)
-                            # Coordenadas rostro humano detectado respecto al mapa trans_map
-                            trans_map , rot_map = listener.lookupTransform('/map', 'Human_'+str(res.success)+'_waving', rospy.Time(0))
-                            print('trans_map', trans_map)
-                            succ = True
-                            person_goal = trans_map
-                            print('Coordinates of Person Saved', person_goal)
-                            break
-                        except:
-                            succ = False
-                            print('It was not possible to transform the coordinates')
-                else:
-                    print('Clear space, Takeshi did not find a Waving Person, trying again')
+                        print(xyz_wrt_robot[0],xyz_wrt_robot[1],xyz_wrt_robot[2] )
+                        
+                        #coordenadas  el robot respecto al mapa
+                        trans , rot = listener.lookupTransform('/map', '/head_rgbd_sensor_link', rospy.Time(0))
+                        # Coordenadas rostro humano detectado respecto al robot
+                        broadcaster.sendTransform((xyz_wrt_robot[0],xyz_wrt_robot[1],xyz_wrt_robot[2] - 1.5),rot, rospy.Time.now(), 'Human_waving',"head_rgbd_sensor_link")
+                        rospy.sleep(0.3)
+                        # Coordenadas rostro humano detectado respecto al mapa trans_map
+                        trans_map , rot_map = listener.lookupTransform('/map', 'Human_waving', rospy.Time(0))
+                        succ = True
+                        person_goal = trans_map
+                        print('Coordinates of Person Saved',trans_map)
+                        break
+                        
+                else: 
+                    print('Clear space, Takeshi did not find a Waving Person in iteration', i)
                     succ = False
+        
         move_base(0,0,0)
         head.set_named_target('neutral')
         head.go()
@@ -1088,11 +1159,11 @@ if __name__== '__main__':
     with sm:
         #State machine for Restaurant
         smach.StateMachine.add("INITIAL",           Initial(),          transitions = {'failed':'INITIAL',          'succ':'MAPPING',           'tries':'END'})
-        smach.StateMachine.add("MAPPING",           Mapping(),          transitions = {'failed':'INITIAL',          'succ':'SCAN_RESTAURANT',        'tries':'END'})
+        smach.StateMachine.add("MAPPING",           Mapping(),          transitions = {'failed':'INITIAL',          'succ':'SCAN_RESTAURANT',   'tries':'END'})
         smach.StateMachine.add("SCAN_RESTAURANT",   Scan_restaurant(),  transitions = {'failed':'SCAN_RESTAURANT',  'succ':'GOTO_TABLE',        'tries':'INITIAL'})
         smach.StateMachine.add("GOTO_TABLE",        Goto_table(),       transitions = {'failed':'GOTO_TABLE',       'succ':'HRI_TAKE_ORDER',    'tries':'GOTO_TABLE', 'end':'INITIAL'})
         smach.StateMachine.add("HRI_TAKE_ORDER",    Hri_take_order(),   transitions = {'failed':'HRI_TAKE_ORDER',   'succ':'HRI_CONFIRM_ORDER', 'tries':'INITIAL'})
-        smach.StateMachine.add("HRI_CONFIRM_ORDER", Hri_confirm_order(),transitions = {'failed':'HRI_TAKE_ORDER',   'succ':'DELIVERY',          'tries':'INITIAL'})
+        smach.StateMachine.add("HRI_CONFIRM_ORDER", Hri_confirm_order(),transitions = {'failed':'HRI_TAKE_ORDER',   'succ':'GOTO_BAR',          'tries':'INITIAL'})
         smach.StateMachine.add("GOTO_BAR",          Goto_bar(),         transitions = {'failed':'GOTO_BAR',         'succ':'SCAN_BAR',          'tries':'END'})
         smach.StateMachine.add("SCAN_BAR",          Scan_bar(),         transitions = {'failed':'GOTO_BAR',         'succ':'PRE_GRASP_BAR',     'tries':'GOTO_BAR'})
         smach.StateMachine.add("PRE_GRASP_BAR",     Pre_grasp_bar(),    transitions = {'failed':'SCAN_BAR',         'succ':'GRASP_BAR',         'tries':'GOTO_BAR'})
