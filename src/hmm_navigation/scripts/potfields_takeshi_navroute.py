@@ -200,8 +200,8 @@ def readSensor(data):
          #markerstopub= MarkerArray()
          lec=np.asarray(data.ranges)
          lec[np.isinf(lec)]=13.5
-         ccxyth=np.load('/home/roboworks/catkin_extras/src/hmm_navigation/scripts/hmm_nav/ccxyth.npy')
-         A=np.load('/home/roboworks/catkin_extras/src/hmm_navigation/scripts/hmm_nav/A.npy')
+         ccxyth=np.load('/home/takeshi/catkin_extras/src/hmm_navigation/scripts/hmm_nav/ccxyth.npy')
+         A=np.load('/home/takeshi/catkin_extras/src/hmm_navigation/scripts/hmm_nav/A.npy')
          graphe= Markov_A_2_grafo(A,ccxyth)        
          xyth= np.asarray((x,y,th)) 
          _,xythcuant= quantized(xyth,ccxyth)
