@@ -22,9 +22,12 @@
 	</include>
 
 	<!-- openpose-->
+	<!--node name="waving_detector" pkg="waving_detector" type="sos_service_waving_sim_test.py" output="screen" -->             <!--Use this in Simulated world-->
+	<node name="waving_detector" pkg="waving_detector" type="sos_service_waving.py" output="screen" >                           <!--Use this in Real world-->
+	</node>
 
-
-	<!-- nav-->
+	<!-- nav--> <!-- Comment if not using Hector Mapping-->  
+	<include file="$(find hsrb_wrs_gazebo_launch)/launch/slam.launch"> </include>
 
 </launch>
 
