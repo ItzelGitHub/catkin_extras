@@ -11,8 +11,11 @@ from utils_notebooks import *
 
 #protoFile = "/home/roboworks/openpose/models/pose/coco/pose_deploy_linevec.prototxt"
 #weightsFile = "/home/roboworks/openpose/models/pose/coco/pose_iter_440000.caffemodel"
-protoFile = "/home/robocup20/openpose/models/pose/body_25/pose_deploy.prototxt"
-weightsFile = "/home/robocup20/openpose/models/pose/body_25/pose_iter_584000.caffemodel"
+"""protoFile = "/home/robocup20/openpose/models/pose/body_25/pose_deploy.prototxt"
+weightsFile = "/home/robocup20/openpose/models/pose/body_25/pose_iter_584000.caffemodel"""
+protoFile = "/home/takeshi/openpose/models/pose/body_25/pose_deploy.prototxt"
+weightsFile = "/home/takeshi/openpose/models/pose/body_25/pose_iter_584000.caffemodel"
+
 net = cv2.dnn.readNetFromCaffe(protoFile, weightsFile)
 
 #############################################################################
@@ -102,10 +105,10 @@ def trigger_response(request):
     results = []
     #for i in range(5):
     rgbd= RGBD()
-    rospy.sleep(0.3)
+    rospy.sleep(3)
     frame= rgbd.get_image()
     points= rgbd.get_points()
-    rospy.sleep(0.3)
+    rospy.sleep(3)
     red , face_coords =predict_waving(frame)
     print (points.shape)
     xyz_wrt_robot= points[ face_coords[1],face_coords[0] ]
