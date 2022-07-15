@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+import os
 import rospy  
 import tf2_ros                                    # the main module for ROS-python programs
 from std_srvs.srv import Trigger, TriggerResponse # we are creating a 'Trigger service'...
@@ -9,10 +10,10 @@ from std_srvs.srv import Trigger, TriggerResponse # we are creating a 'Trigger s
 from utils_notebooks import *
 
 
-#protoFile = "/home/roboworks/openpose/models/pose/coco/pose_deploy_linevec.prototxt"
-#weightsFile = "/home/roboworks/openpose/models/pose/coco/pose_iter_440000.caffemodel"
-protoFile = "pose_deploy.prototxt"
-weightsFile = "pose_iter_584000.caffemodel"
+protoFile = "/home/roboworks/restaurant_ws/src/restaurant/src/waving_detector/scripts/pose_deploy_linevec.prototxt"
+weightsFile = "/home/roboworks/restaurant_ws/src/restaurant/src/waving_detector/scripts/pose_iter_584000.caffemodel"
+#protoFile = "pose_deploy_linevec.prototxt"
+#weightsFile = "pose_iter_584000.caffemodel"
 net = cv2.dnn.readNetFromCaffe(protoFile, weightsFile)
 
 #############################################################################

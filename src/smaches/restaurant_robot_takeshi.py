@@ -27,8 +27,14 @@ from sensor_msgs.msg import Image , LaserScan , PointCloud2
 from hri_msgs.msg import RecognizedSpeech
 from std_msgs.msg import Bool
 
+from hsrb_interface import Robot
+import traceback
 
-
+robot = Robot()
+whole_body = robot.get("whole_body")
+omni_base = robot.get("omni_base") #Standard initialisation (Toyota)
+gripper = robot.get('gripper')
+collision = robot.get('global_collision_world')
 
 ########## Functions for takeshi states ##########
 class Proto_state(smach.State):###example of a state definition.
@@ -323,32 +329,42 @@ def gaze_point(x,y,z):
     return succ
 
 
+# def move_base(goal_x,goal_y,goal_yaw,time_out=10):
+
+#     #using nav client and toyota navigation go to x,y,yaw
+#     #To Do: PUMAS NAVIGATION
+#     pose = PoseStamped()
+#     pose.header.stamp = rospy.Time(0)
+#     pose.header.frame_id = "map"
+#     pose.pose.position = Point(goal_x, goal_y, 0)
+#     quat = tf.transformations.quaternion_from_euler(0, 0, goal_yaw)
+#     pose.pose.orientation = Quaternion(*quat)
+
+
+#     # create a MOVE BASE GOAL
+#     goal = MoveBaseGoal()
+#     goal.target_pose = pose
+
+#     # send message to the action server
+#     navclient.send_goal(goal)
+
+#     # wait for the action server to complete the order
+#     navclient.wait_for_result(timeout=rospy.Duration(time_out))
+
+#     # print result of navigation
+#     action_state = navclient.get_state()
+#     print(action_state)
+#     return navclient.get_state()
+
 def move_base(goal_x,goal_y,goal_yaw,time_out=10):
 
     #using nav client and toyota navigation go to x,y,yaw
     #To Do: PUMAS NAVIGATION
-    pose = PoseStamped()
-    pose.header.stamp = rospy.Time(0)
-    pose.header.frame_id = "map"
-    pose.pose.position = Point(goal_x, goal_y, 0)
-    quat = tf.transformations.quaternion_from_euler(0, 0, goal_yaw)
-    pose.pose.orientation = Quaternion(*quat)
 
+    state = omni_base.go_rel(goal_x, goal_y, goal_yaw, timeout=100)
+    print(state)
 
-    # create a MOVE BASE GOAL
-    goal = MoveBaseGoal()
-    goal.target_pose = pose
-
-    # send message to the action server
-    navclient.send_goal(goal)
-
-    # wait for the action server to complete the order
-    navclient.wait_for_result(timeout=rospy.Duration(time_out))
-
-    # print result of navigation
-    action_state = navclient.get_state()
-    return navclient.get_state()
-
+    return state
 
 def static_tf_publish(cents):
     ## Publish tfs of the centroids obtained w.r.t. head sensor frame and references them to map (static)
@@ -468,14 +484,13 @@ class Mapping(smach.State):
         head.set_named_target('neutral')
         head.go()
         print('360 Deg turn to Map')
-        
-        move_base(0,0,np.pi)
 
+        rospy.logerr("-" * 300)
+        omni_base.go_rel(0,0,np.pi)
         rospy.sleep(0.5)
 
-        succ = move_base(0,0,2*np.pi)
-        #succ = True
-
+        omni_base.go_rel(0,0,np.pi)
+        succ = True
         if succ:
             print('Takeshi Mapped')
             return 'succ'
@@ -1039,11 +1054,11 @@ class Delivery(smach.State):
 def init(node_name):
     global listener, broadcaster, tfBuffer, tf_static_broadcaster, scene, rgbd  , head,whole_body,arm,gripper  ,goal,navclient,clear_octo_client, mic_sphinx
     global classify_client , detect_waving_client, class_names , bridge , base_vel_pub,takeshi_talk_pub, order, person_goal
-    rospy.init_node(node_name)
-    head = moveit_commander.MoveGroupCommander('head')
-    gripper =  moveit_commander.MoveGroupCommander('gripper')
-    whole_body=moveit_commander.MoveGroupCommander('whole_body')
-    arm =  moveit_commander.MoveGroupCommander('arm')
+    #rospy.init_node(node_name)
+    head = moveit_commander.MoveGroupCommander('head', wait_for_servers=300)
+    gripper =  moveit_commander.MoveGroupCommander('gripper', wait_for_servers=300)
+    whole_body=moveit_commander.MoveGroupCommander('whole_body', wait_for_servers=300)
+    arm =  moveit_commander.MoveGroupCommander('arm', wait_for_servers=300)
     listener = tf.TransformListener()
     broadcaster = tf.TransformBroadcaster()
     tfBuffer = tf2_ros.Buffer()
