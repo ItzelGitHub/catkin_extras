@@ -29,8 +29,18 @@ from std_msgs.msg import Bool
 
 from hsrb_interface import Robot
 import traceback
-protoFile = "/home/takeshi/openpose/models/pose/body_25/pose_deploy.prototxt"
-weightsFile = "/home/takeshi/openpose/models/pose/body_25/pose_iter_584000.caffemodel"
+
+
+###### Remember to change this path###########################################
+protoFile = "/home/biorob/openpose/models/pose/body_25/pose_deploy.prototxt"
+weightsFile = "/home/biorob/openpose/models/pose/body_25/pose_iter_584000.caffemodel"
+
+##############################################################################################
+
+
+
+
+
 
 net = cv2.dnn.readNetFromCaffe(protoFile, weightsFile)
 
@@ -463,7 +473,7 @@ def predict_waving(frame):
 
     H = output.shape[2]
     W = output.shape[3]
-    threshold=0.1
+    threshold=0.8
     # Empty list to store the detected keypoints
     points = []
     invalid_joints = []
@@ -645,6 +655,15 @@ class Scan_restaurant(smach.State):
                     succ = True
                     person_goal = trans_map
                     print('Coordinates of Person Saved', trans_map)
+                    voice_message=Voice()
+                    voice_message.sentence = 'I found a Costumer'
+                    voice_message.queueing = False
+                    voice_message.language = 1
+                    voice_message.interrupting = False
+                    #print('--------------------------PUB------------------------')
+
+                    takeshi_talk_pub.publish(voice_message)
+                    rospy.sleep(1.5)
                     break
                    
             else: print('Clear space, Takeshi did not find a Waving Person in iteration', i)
@@ -652,7 +671,7 @@ class Scan_restaurant(smach.State):
 
         if WaveReq == False:
             print('Looking for Waving Person - BEHIND')
-            move_base(0,0,np.pi)
+            #move_base(0,0,np.pi)
             print('Moving Base ang = ',np.pi)
             rospy.sleep(0.5)
 
@@ -699,13 +718,22 @@ class Scan_restaurant(smach.State):
                         succ = True
                         person_goal = trans_map
                         print('Coordinates of Person Saved',trans_map)
+                        voice_message=Voice()
+                        voice_message.sentence = 'I found a Costumer'
+                        voice_message.queueing = False
+                        voice_message.language = 1
+                        voice_message.interrupting = False
+                        #print('--------------------------PUB------------------------')
+
+                        takeshi_talk_pub.publish(voice_message)
+                        rospy.sleep(1.5)
                         break
                         
                 else: 
                     print('Clear space, Takeshi did not find a Waving Person in iteration', i)
                     succ = False
         
-        move_base(0,0,0)
+        #move_base(0,0,0)
         head.set_named_target('neutral')
         head.go()
         rospy.sleep(1)
@@ -744,10 +772,10 @@ class Goto_table(smach.State):
         goal_yaw = 1.57
         goal_xyz=np.asarray((goal_x,goal_y,goal_yaw))
 
-        succ = move_base(person_goal[0],person_goal[1],0)
+        #succ = move_base(person_goal[0],person_goal[1],person_goal[0])
         print('moving to (',person_goal[0],person_goal[1],0,')')
         xyz=whole_body.get_current_joint_values()[:3]
-        #succ = True
+        succ = True
         print ('Goal is table',goal_xyz,'current',xyz)
         print ('Distance is ' ,np.linalg.norm(xyz-goal_xyz))
         if (np.linalg.norm(xyz-goal_xyz)  < .3):
@@ -932,9 +960,9 @@ class Goto_bar(smach.State):
         goal_yaw = -1.57
         goal_xyz=np.asarray((goal_x,goal_y,goal_yaw))
 
-        succ=move_base(goal_x, goal_y, goal_yaw)
+        #succ=move_base(goal_x, goal_y, goal_yaw)
         xyz=whole_body.get_current_joint_values()[:3]
-        #succ = True
+        succ = True
         print ('Goal is bar',goal_xyz,'current',xyz)
         print ('Distance is ' ,np.linalg.norm(xyz-goal_xyz))
         if (np.linalg.norm(xyz-goal_xyz)  < .3):
@@ -1028,7 +1056,7 @@ class Grasp_bar(smach.State):
         goal_yaw = -1.57
         goal_xyz=np.asarray((goal_x,goal_y,goal_yaw))
 
-        move_base(goal_x, goal_y, goal_yaw)
+        #move_base(goal_x, goal_y, goal_yaw)
 
         close_gripper()
 
@@ -1067,7 +1095,7 @@ class Goto_del_goal(smach.State):
         goal_yaw = 1.57
         goal_xyz=np.asarray((goal_x,goal_y,goal_yaw))
 
-        move_base(goal_x, goal_y, goal_yaw)
+        #move_base(goal_x, goal_y, goal_yaw)
         xyz=whole_body.get_current_joint_values()[:3]
 
         print ('Goal is bar',goal_xyz,'current',xyz)
