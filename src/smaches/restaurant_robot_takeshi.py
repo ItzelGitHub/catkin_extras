@@ -32,8 +32,11 @@ import traceback
 
 
 ###### Remember to change this path###########################################
-protoFile = "/home/biorob/openpose/models/pose/body_25/pose_deploy.prototxt"
-weightsFile = "/home/biorob/openpose/models/pose/body_25/pose_iter_584000.caffemodel"
+#protoFile = "/home/biorob/openpose/models/pose/body_25/pose_deploy.prototxt"
+#weightsFile = "/home/biorob/openpose/models/pose/body_25/pose_iter_584000.caffemodel"
+
+protoFile = "/home/roboworks/restaurant_ws/src/restaurant/src/waving_detector/scripts/pose_deploy.prototxt"
+weightsFile = "/home/roboworks/restaurant_ws/src/restaurant/src/waving_detector/scripts/pose_iter_584000.caffemodel"
 
 ##############################################################################################
 
@@ -115,8 +118,8 @@ def close_gripper():
 def correct_points(low=.27,high=1000):
 
     #Corrects point clouds "perspective" i.e. Reference frame head is changed to reference frame map
-    data = rospy.wait_for_message('/hsrb/head_rgbd_sensor/depth_registered/rectified_points', PointCloud2)
-    np_data=ros_numpy.numpify(data)
+    pt_data = rospy.wait_for_message('/hsrb/head_rgbd_sensor/depth_registered/rectified_points', PointCloud2)
+    np_data=ros_numpy.numpify(pt_data)
     trans,rot=listener.lookupTransform('/map', '/head_rgbd_sensor_gazebo_frame', rospy.Time(0))
 
     eu=np.asarray(tf.transformations.euler_from_quaternion(rot))
@@ -457,7 +460,7 @@ def move_d_to(target_distance=0.5,target_link='Floor_Object0'):
     #############################################################################
 def predict_waving(frame):
 
-
+    
     # Specify the input image dimensions
     inHeight = frame.shape[0]
     inWidth = frame.shape[1]
@@ -573,10 +576,10 @@ class Mapping(smach.State):
         print('360 Deg turn to Map')
 
         rospy.logerr("-" * 300)
-        #omni_base.go_rel(0,0,np.pi)
+        omni_base.go_rel(0,0,np.pi)
         rospy.sleep(0.5)
 
-        #omni_base.go_rel(0,0,np.pi)
+        omni_base.go_rel(0,0,np.pi)
         succ = True
         if succ:
             print('Takeshi Mapped')
@@ -624,12 +627,19 @@ class Scan_restaurant(smach.State):
             rospy.sleep(0.5)
         
            # Read image and PoinClouds topics
-            data = rospy.wait_for_message("/hsrb/head_rgbd_sensor/rgb/image_raw",Image) ### FOR DEBUGGING: WHEN USING ROBOT PLEASE CHANGE THIS TOPIC ACCORDINGLY
-            cv2_img = bridge.imgmsg_to_cv2(data)#, "bgr8")
+            im_data = rospy.wait_for_message("/hsrb/head_rgbd_sensor/rgb/image_raw",Image) ### FOR DEBUGGING: WHEN USING ROBOT PLEASE CHANGE THIS TOPIC ACCORDINGLY
+            cv2_img = bridge.imgmsg_to_cv2(im_data, "bgr8")
+            #cv2.imshow("window", cv2_img)
+            #cv2.waitKey(3)
+            cv2.imwrite("/tmp/debug.png", cv2_img)
             print(cv2_img.shape)
-            data = rospy.wait_for_message('/hsrb/head_rgbd_sensor/depth_registered/rectified_points', PointCloud2)
-            points=ros_numpy.numpify(data)
-            red , face_coords =predict_waving(cv2_img)
+            pt_data = rospy.wait_for_message('/hsrb/head_rgbd_sensor/depth_registered/rectified_points', PointCloud2)
+            points=ros_numpy.numpify(pt_data)
+            try:
+                red , face_coords =predict_waving(cv2_img)
+            except:
+                succ = False
+                return 'failed'
             print (points.shape)
             xyz_wrt_robot= points[ face_coords[1],face_coords[0] ]
             WaveReq = red
@@ -689,12 +699,12 @@ class Scan_restaurant(smach.State):
                 #Request LoreService
 
                 
-                data = rospy.wait_for_message("/hsrb/head_rgbd_sensor/rgb/image_raw",Image) ### FOR DEBUGGING: WHEN USING ROBOT PLEASE CHANGE THIS TOPIC ACCORDINGLY
-                cv2_img = bridge.imgmsg_to_cv2(data)#, "bgr8")
+                im_data = rospy.wait_for_message("/hsrb/head_rgbd_sensor/rgb/image_raw",Image) ### FOR DEBUGGING: WHEN USING ROBOT PLEASE CHANGE THIS TOPIC ACCORDINGLY
+                cv2_img = bridge.imgmsg_to_cv2(im_data)#, "bgr8")
                 print(cv2_img.shape)
                 red , face_coords =predict_waving(cv2_img)
-                data = rospy.wait_for_message('/hsrb/head_rgbd_sensor/depth_registered/rectified_points', PointCloud2)
-                points=ros_numpy.numpify(data)
+                pt_data = rospy.wait_for_message('/hsrb/head_rgbd_sensor/depth_registered/rectified_points', PointCloud2)
+                points=ros_numpy.numpify(pt_data)
                 xyz_wrt_robot= points[ face_coords[1],face_coords[0] ]
                 WaveReq = red
                 print('WaveReq=', red)
@@ -820,9 +830,9 @@ class Hri_take_order(smach.State):
 
         print ("-------------------------------")
         print ("Please Speak now")
-        data = rospy.wait_for_message('/recognizedSpeech', RecognizedSpeech)
+        sp_data = rospy.wait_for_message('/recognizedSpeech', RecognizedSpeech)
 
-        d = str(data)
+        d = str(sp_data)
         wordlist = d.split()
         wordlist.pop()
         wordlist.remove('hypothesis:')
@@ -1186,7 +1196,7 @@ if __name__== '__main__':
 
     with sm:
         #State machine for Restaurant
-        smach.StateMachine.add("INITIAL",           Initial(),          transitions = {'failed':'INITIAL',          'succ':'MAPPING',           'tries':'END'})
+        smach.StateMachine.add("INITIAL",           Initial(),          transitions = {'failed':'INITIAL',          'succ':'SCAN_RESTAURANT',           'tries':'END'})
         smach.StateMachine.add("MAPPING",           Mapping(),          transitions = {'failed':'INITIAL',          'succ':'SCAN_RESTAURANT',   'tries':'END'})
         smach.StateMachine.add("SCAN_RESTAURANT",   Scan_restaurant(),  transitions = {'failed':'SCAN_RESTAURANT',  'succ':'GOTO_TABLE',        'tries':'INITIAL'})
         smach.StateMachine.add("GOTO_TABLE",        Goto_table(),       transitions = {'failed':'GOTO_TABLE',       'succ':'HRI_TAKE_ORDER',    'tries':'GOTO_TABLE', 'end':'INITIAL'})
