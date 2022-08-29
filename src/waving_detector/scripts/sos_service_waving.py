@@ -10,10 +10,12 @@ from std_srvs.srv import Trigger, TriggerResponse # we are creating a 'Trigger s
 from utils_notebooks import *
 
 
-protoFile = "/home/roboworks/restaurant_ws/src/restaurant/src/waving_detector/scripts/pose_deploy_linevec.prototxt"
-weightsFile = "/home/roboworks/restaurant_ws/src/restaurant/src/waving_detector/scripts/pose_iter_584000.caffemodel"
+#protoFile = "/home/roboworks/restaurant_ws/src/restaurant/src/waving_detector/scripts/pose_deploy_linevec.prototxt"
+#weightsFile = "/home/roboworks/restaurant_ws/src/restaurant/src/waving_detector/scripts/pose_iter_584000.caffemodel"
 #protoFile = "pose_deploy_linevec.prototxt"
 #weightsFile = "pose_iter_584000.caffemodel"
+protoFile = "/home/biorob/openpose/models/pose/coco/pose_deploy_linevec.prototxt"
+weightsFile = "/home/biorob/openpose/models/pose/coco/pose_iter_440000.caffemodel"
 net = cv2.dnn.readNetFromCaffe(protoFile, weightsFile)
 
 #############################################################################
@@ -35,7 +37,7 @@ def predict_waving(frame):
 
     H = output.shape[2]
     W = output.shape[3]
-    threshold=0.1
+    threshold=0.9
     # Empty list to store the detected keypoints
     points = []
     invalid_joints = []
@@ -99,14 +101,14 @@ def trigger_response(request):
     Callback function used by the service server to process
     requests from clients. It returns a TriggerResponse
     '''
-    
+    global rgbd
     results = []
     #for i in range(5):
-    rgbd= RGBD()
-    rospy.sleep(3)
+    #rospy.sleep(3)
     frame= rgbd.get_image()
+    print(frame.shape)
     points= rgbd.get_points()
-    rospy.sleep(3)
+    #rospy.sleep(3)
     red , face_coords =predict_waving(frame)
     print (points.shape)
     xyz_wrt_robot= points[ face_coords[1],face_coords[0] ]
@@ -127,10 +129,11 @@ def trigger_response(request):
 
 
 rospy.init_node('waving_server') 
-print('\n--------------------------LoreService Starting--------------------------\n')
+print('\n--------------------------LoreService Starting- 1.1  -------------------------\n')
 listener = tf.TransformListener()
 broadcaster= tf.TransformBroadcaster()
 tf_static_broadcaster= tf2_ros.StaticTransformBroadcaster()
+rgbd= RGBD()
 rospy.loginfo("waving detection service available")                    # initialize a ROS node
 my_service = rospy.Service(                        # create a service, specifying its name,
     '/detect_waving', Trigger, trigger_response         # type, and callback
