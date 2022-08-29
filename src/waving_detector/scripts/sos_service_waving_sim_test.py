@@ -11,10 +11,12 @@ from utils_notebooks import *
 
 #protoFile = "/home/roboworks/openpose/models/pose/coco/pose_deploy_linevec.prototxt"
 #weightsFile = "/home/roboworks/openpose/models/pose/coco/pose_iter_440000.caffemodel"
-"""protoFile = "/home/biorob/openpose/models/pose/body_25/pose_deploy.prototxt"
-weightsFile = "/home/biorob/openpose/models/pose/body_25/pose_iter_584000.caffemodel"""
-protoFile = "/home/robocup20/openpose/models/pose/body_25/pose_deploy.prototxt"
-weightsFile = "/home/robocup20/openpose/models/pose/body_25/pose_iter_584000.caffemodel"
+#protoFile = "/home/biorob/openpose/models/pose/body_25/pose_deploy.prototxt"
+#weightsFile = "/home/biorob/openpose/models/pose/body_25/pose_iter_584000.caffemodel"
+#protoFile = "/home/robocup20/openpose/models/pose/body_25/pose_deploy.prototxt"
+#weightsFile = "/home/robocup20/openpose/models/pose/body_25/pose_iter_584000.caffemodel"
+protoFile = "/home/biorob/openpose/models/pose/coco/pose_deploy_linevec.prototxt"
+weightsFile = "/home/biorob/openpose/models/pose/coco/pose_iter_440000.caffemodel"
 net = cv2.dnn.readNetFromCaffe(protoFile, weightsFile)
 
 #############################################################################
@@ -90,10 +92,10 @@ def predict_waving(frame):
            
 ############################################
 
-def point_2D_3D(points_data, px_y, px_x):
+"""def point_2D_3D(points_data, px_y, px_x):
     ##px pixels /2D world  P1 3D world
     P = np.asarray((points_data[px_y, px_x]['x'], points_data[px_y, px_x]['y'], points_data[px_y, px_x]['z']))
-    return P
+    return P"""
 
 
 def trigger_response(request):
