@@ -40,6 +40,18 @@ net = cv2.dnn.readNetFromCaffe(protoFile, weightsFile)
 #pub = rospy.Publisher('/segmented_images', Image, queue_size=1)
 bridge=CvBridge()
 
+
+
+#-----------------------------------------------------------------
+def shirt_color()   # Recibe las coordenadas del frame de la cabeza del humano detectado
+    """
+        Baja 0.12m y toma muestra de pixeles para detectar el color, ese valor lo envía de vuelta
+    """
+    shirt_co = 0
+    
+    
+    return shirt_co
+    
 #-----------------------------------------------------------------
 def write_tf(pose, q, child_frame , parent_frame='map'):
     t= TransformStamped()
